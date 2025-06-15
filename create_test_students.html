@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Test Students</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .student-card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .auth-form {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            width: 200px;
+        }
+        .toggle-form {
+            color: #4CAF50;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Create Test Students</h1>
+    
+    <!-- Authentication Form -->
+    <div id="auth-form" class="auth-form">
+        <h2>Staff Login</h2>
+        <div id="login-form">
+            <input type="email" id="login-email" placeholder="Staff Email" />
+            <input type="password" id="login-password" placeholder="Password" />
+            <button onclick="loginStaff()">Login</button>
+            <p class="toggle-form" onclick="toggleAuthForm()">Don't have an account? Sign up</p>
+        </div>
+        <div id="signup-form" style="display: none;">
+            <input type="email" id="signup-email" placeholder="Staff Email" />
+            <input type="password" id="signup-password" placeholder="Password" minlength="6" />
+            <button onclick="createStaffAccount()">Create Account</button>
+            <p class="toggle-form" onclick="toggleAuthForm()">Already have an account? Login</p>
+        </div>
+        <div id="auth-status"></div>
+    </div>
+
+    <!-- Create Students Section -->
+    <div id="create-students-section" style="display: none;">
+        <button onclick="createTestStudents()">Create Test Students</button>
+        <button onclick="logout()">Logout</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-juwr-RtJmxW8d3xTWy9BthYR7Ave4LY",
+            authDomain: "students-glory.firebaseapp.com",
+            projectId: "students-glory",
+            storageBucket: "students-glory.firebasestorage.app",
+            messagingSenderId: "337864792101",
+            appId: "1:337864792101:web:3f92bf2e4e8f7b499487cc"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Toggle between login and signup forms
+        function toggleAuthForm() {
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            if (loginForm.style.display === 'none') {
+                loginForm.style.display = 'block';
+                signupForm.style.display = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                signupForm.style.display = 'block';
+            }
+        }
+
+        // Check authentication state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('auth-form').style.display = 'none';
+                document.getElementById('create-students-section').style.display = 'block';
+            } else {
+                document.getElementById('auth-form').style.display = 'block';
+                document.getElementById('create-students-section').style.display = 'none';
+            }
+        });
+
+        // Create staff account
+        async function createStaffAccount() {
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const authStatus = document.getElementById('auth-status');
+
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                
+                // Add staff role to Firestore
+                await db.collection('Staff').doc(userCredential.user.uid).set({
+                    email: email,
+                    role: 'staff',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                authStatus.innerHTML = 'Account created successfully!';
+                authStatus.className = 'success';
+            } catch (error) {
+                authStatus.innerHTML = 'Error creating account: ' + error.message;
+                authStatus.className = 'error';
+            }
+        }
+
+        // Staff login function
+        async function loginStaff() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const authStatus = document.getElementById('auth-status');
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                authStatus.innerHTML = 'Login successful!';
+                authStatus.className = 'success';
+            } catch (error) {
+                authStatus.innerHTML = 'Login failed: ' + error.message;
+                authStatus.className = 'error';
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                await auth.signOut();
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        const testStudents = [
+            {
+                id: "MATH001",
+                name: "John Smith",
+                grade: "Grade 10",
+                attendance: 95,
+                homeworkStatus: {
+                    completed: 15,
+                    total: 16
+                },
+                courses: {
+                    "Algebra": "A",
+                    "Geometry": "B+",
+                    "Calculus": "A-"
+                },
+                reports: [
+                    {
+                        date: "2024-03-15",
+                        content: "Excellent progress in Algebra. Shows strong problem-solving skills."
+                    },
+                    {
+                        date: "2024-03-01",
+                        content: "Good participation in class discussions. Needs to improve in Geometry proofs."
+                    }
+                ]
+            },
+            {
+                id: "MATH002",
+                name: "Sarah Johnson",
+                grade: "Grade 11",
+                attendance: 98,
+                homeworkStatus: {
+                    completed: 16,
+                    total: 16
+                },
+                courses: {
+                    "Advanced Algebra": "A+",
+                    "Trigonometry": "A",
+                    "Statistics": "A-"
+                },
+                reports: [
+                    {
+                        date: "2024-03-15",
+                        content: "Outstanding performance in all math subjects. Particularly strong in Statistics."
+                    },
+                    {
+                        date: "2024-03-01",
+                        content: "Excellent work on the recent trigonometry project. Shows great analytical skills."
+                    }
+                ]
+            },
+            {
+                id: "MATH003",
+                name: "Michael Brown",
+                grade: "Grade 9",
+                attendance: 92,
+                homeworkStatus: {
+                    completed: 14,
+                    total: 16
+                },
+                courses: {
+                    "Pre-Algebra": "B+",
+                    "Basic Geometry": "A-",
+                    "Math Fundamentals": "B"
+                },
+                reports: [
+                    {
+                        date: "2024-03-15",
+                        content: "Good progress in Math Fundamentals. Needs more practice with Geometry."
+                    },
+                    {
+                        date: "2024-03-01",
+                        content: "Showing improvement in Pre-Algebra. Keep up the good work!"
+                    }
+                ]
+            }
+        ];
+
+        async function createTestStudents() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Creating test students...';
+            statusDiv.className = '';
+
+            try {
+                for (const student of testStudents) {
+                    await db.collection('Students').doc(student.id).set(student);
+                }
+                statusDiv.innerHTML = 'Test students created successfully!<br><br>' +
+                    'Student IDs for testing:<br>' +
+                    testStudents.map(s => `${s.id} - ${s.name}`).join('<br>');
+                statusDiv.className = 'success';
+            } catch (error) {
+                statusDiv.innerHTML = 'Error creating test students: ' + error.message;
+                statusDiv.className = 'error';
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html> 

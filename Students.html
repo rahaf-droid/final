@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Students Portal</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <style>
+    :root {
+      --accent-color: #A78BFA;
+      --sidebar-bg-light: #F8E0F5;
+      --sidebar-bg-dark: #5F3C6E;
+      --background-light: #FFF1F8;
+      --background-dark: #2D1A5D;
+      --text-main-light: #333;
+      --text-main-dark: #FFF;
+      --card-bg-light: #F6E6F0;
+      --card-bg-dark: #8C4B94;
+    }
+
+    body {
+      transition: all 0.3s ease;
+      font-family: 'Quicksand', sans-serif;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23FFF1F8" /><circle cx="50" cy="50" r="5" fill="%23A78BFA" opacity="0.2" /></svg>');
+    }
+
+    .dark {
+      background-color: var(--background-dark);
+      color: var(--text-main-dark);
+    }
+
+    .light {
+      background-color: var(--background-light);
+      color: var(--text-main-light);
+    }
+
+    .card-dark {
+      background-color: var(--card-bg-light);
+    }
+
+    .dark .card-dark {
+      background-color: var(--card-bg-dark);
+    }
+
+    .accent {
+      color: var(--accent-color);
+    }
+
+    .bg-custom {
+      background-color: var(--sidebar-bg-light);
+    }
+
+    .dark .bg-custom {
+      background-color: var(--sidebar-bg-dark);
+    }
+
+    .sidebar {
+      min-height: 100vh;
+      width: 240px;
+      transition: all 0.3s ease;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sidebar.shrunk {
+      width: 80px;
+    }
+
+    .sidebar .logo {
+      transition: all 0.3s ease;
+    }
+
+    .sidebar.shrunk .logo {
+      display: none;
+    }
+
+    .sidebar .logo-img {
+      height: 50px;
+      width: 50px;
+      object-fit: contain;
+      border-radius: 50%;
+    }
+
+    .sidebar.shrunk .logo-img {
+      height: 40px;
+      width: 40px;
+    }
+
+    .sidebar-toggle {
+      position: absolute;
+      top: 10px;
+      right: -40px;
+      background-color: #f8e0f5;
+      border-radius: 50%;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 10;
+    }
+
+    .sidebar.shrunk .sidebar-toggle {
+      right: -25px;
+    }
+
+    .sidebar-toggle:hover {
+      background-color: #d6b7e6;
+    }
+
+    .sidebar-toggle:focus {
+      outline: none;
+    }
+
+    .sidebar-content {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .chat {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #fff;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 10px;
+      width: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .chat-header {
+      background-color: #A78BFA;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
+      color: white;
+    }
+
+    .chat-messages {
+      margin-top: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .chat-input {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .chat-input input {
+      width: 80%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    .chat-input button {
+      width: 15%;
+      background-color: #A78BFA;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="flex bg-white text-black light:bg-[#FFF1F8] dark:bg-[#2D1A5D] dark:text-white">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar bg-[var(--sidebar-bg-light)] dark:bg-[var(--sidebar-bg-dark)]">
+    <div class="sidebar-toggle" onclick="toggleSidebar()">
+      <span class="text-2xl font-bold text-white">&#9776;</span>
+    </div>
+    <div class="logo">
+      <img src="./assets/logo.png" alt="Logo" class="logo-img">
+      <span class="text-2xl font-bold">Students Glory</span>
+    </div>
+    <div class="sidebar-content">
+      <nav class="flex flex-col space-y-3">
+        <button onclick="showTab('home')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">🏠 Home</button>
+        <button onclick="showTab('materials')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">📚 Materials</button>
+        <button onclick="showTab('homework')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">📝 Homework</button>
+        <button onclick="showTab('upload')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">📤 Upload</button>
+        <button onclick="showTab('fun')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">😂 Fun Corner</button>
+        <button onclick="showTab('grades')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">📈 Grades</button>
+        <button onclick="showTab('announcements')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">📢 Announcements</button>
+        <button onclick="showTab('zoom')" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">🎥 Zoom Links</button>
+        <button onclick="toggleDarkMode()" class="text-lg p-2 rounded-md hover:bg-[#D6B7E6] dark:hover:bg-[#735E98]">🌗 Toggle Mode</button>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6">
+    <div id="home" class="section">
+      <div class="bg-gradient-to-r from-purple-100 via-pink-100 to-red-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-purple-700 mb-4">Welcome to Your Dashboard!</h3>
+        <p class="text-gray-600">Track your progress, access materials, and manage your homework all in one place.</p>
+      </div>
+    </div>
+
+    <div id="materials" class="section hidden">
+      <div class="bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-blue-700 mb-4">Materials</h3>
+        <div id="materials-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <!-- Materials will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="homework" class="section hidden">
+      <div class="bg-gradient-to-r from-green-100 via-emerald-100 to-teal-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-green-700 mb-4">Homework</h3>
+        <div id="homework-list" class="grid grid-cols-1 gap-4">
+          <!-- Homework items will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="upload" class="section hidden">
+      <div class="bg-gradient-to-r from-yellow-100 via-orange-100 to-red-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-yellow-700 mb-4">Upload Section</h3>
+        <div class="space-y-4">
+          <div class="bg-white p-6 rounded-lg shadow">
+            <h4 class="text-lg font-semibold mb-4">Upload Homework</h4>
+            <input type="file" class="w-full p-2 border rounded" multiple>
+            <button class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              Upload Files
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="fun" class="section hidden">
+      <div class="bg-gradient-to-r from-pink-100 via-purple-100 to-indigo-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-pink-700 mb-4">Fun Corner</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-white p-6 rounded-lg shadow">
+            <h4 class="text-lg font-semibold mb-4">Math Jokes</h4>
+            <div id="jokes-container" class="space-y-4">
+              <!-- Jokes will be loaded here -->
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow">
+            <h4 class="text-lg font-semibold mb-4">Math Puzzles</h4>
+            <div id="puzzles-container" class="space-y-4">
+              <!-- Puzzles will be loaded here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="grades" class="section hidden">
+      <div class="bg-gradient-to-r from-green-100 via-teal-100 to-blue-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-green-700 mb-4">Grades</h3>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="space-y-4">
+            <div>
+              <h4 class="text-lg font-semibold mb-2">Mathematics</h4>
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 85%"></div>
+              </div>
+              <p class="text-sm text-gray-600 mt-1">85% - Excellent!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="announcements" class="section hidden">
+      <div class="bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-blue-700 mb-4">Announcements</h3>
+        <div id="announcements-list" class="space-y-4">
+          <!-- Announcements will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="zoom" class="section hidden">
+      <div class="bg-gradient-to-r from-purple-100 via-pink-100 to-red-100 rounded-2xl shadow-lg p-8 mb-6">
+        <h3 class="text-2xl font-bold text-purple-700 mb-4">Zoom Links</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-white p-6 rounded-lg shadow">
+            <h4 class="text-lg font-semibold mb-2">Mathematics Class</h4>
+            <p class="text-gray-600 mb-4">Join your mathematics class here</p>
+            <a href="#" class="text-blue-500 hover:text-blue-700">Join Meeting</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Chat UI -->
+  <div class="chat">
+    <div class="chat-header">Assistant Chat</div>
+    <div class="chat-messages" id="chatMessages">
+      <!-- Messages will appear here -->
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Firebase only if it hasn't been initialized
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    // Add loading state
+    let isLoading = true;
+    const mainContent = document.querySelector('main');
+    mainContent.innerHTML = `
+      <div class="flex items-center justify-center h-screen">
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
+          <p class="mt-4 text-lg text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    `;
+
+    // Check authentication state
+    firebase.auth().onAuthStateChanged(async (user) => {
+      console.log('Students Portal: Auth state changed:', user ? 'User logged in' : 'No user');
+      
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        // Check localStorage first
+        const storedUserData = localStorage.getItem('userData');
+        console.log('Students Portal: Stored user data:', storedUserData);
+        
+        let userData;
+        if (storedUserData) {
+          userData = JSON.parse(storedUserData);
+          if (userData.role !== 'student') {
+            window.location.href = 'login.html';
+            return;
+          }
+        } else {
+          // If no stored data, fetch from Firestore
+          const userDoc = await firebase.firestore()
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+          if (!userDoc.exists || userDoc.data().role !== 'student') {
+            window.location.href = 'login.html';
+            return;
+          }
+
+          userData = userDoc.data();
+          // Store user data in localStorage
+          const userDataToStore = {
+            uid: user.uid,
+            email: user.email,
+            role: userData.role,
+            subjectLevel: userData.subjectLevel,
+            name: userData.name
+          };
+          localStorage.setItem('userData', JSON.stringify(userDataToStore));
+        }
+
+        // First restore the main content
+        mainContent.innerHTML = `
+          <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center space-x-4">
+              <span id="student-name" class="text-lg font-semibold"></span>
+              <span id="student-level" class="text-sm text-gray-600"></span>
+            </div>
+            <button onclick="logout()" class="text-red-600 hover:text-red-800">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+          </div>
+
+          <div id="home" class="section">
+            <div class="bg-gradient-to-r from-purple-100 via-pink-100 to-red-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-purple-700 mb-4">Welcome to Your Dashboard!</h3>
+              <p class="text-gray-600">Track your progress, access materials, and manage your homework all in one place.</p>
+            </div>
+          </div>
+
+          <div id="materials" class="section hidden">
+            <div class="bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-blue-700 mb-4">Materials</h3>
+              <div id="materials-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <!-- Materials will be loaded here -->
+              </div>
+            </div>
+          </div>
+
+          <div id="homework" class="section hidden">
+            <div class="bg-gradient-to-r from-green-100 via-emerald-100 to-teal-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-green-700 mb-4">Homework</h3>
+              <div id="homework-list" class="grid grid-cols-1 gap-4">
+                <!-- Homework items will be loaded here -->
+              </div>
+            </div>
+          </div>
+
+          <div id="upload" class="section hidden">
+            <div class="bg-gradient-to-r from-yellow-100 via-orange-100 to-red-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-yellow-700 mb-4">Upload Section</h3>
+              <div class="space-y-4">
+                <div class="bg-white p-6 rounded-lg shadow">
+                  <h4 class="text-lg font-semibold mb-4">Upload Homework</h4>
+                  <input type="file" class="w-full p-2 border rounded" multiple>
+                  <button class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Upload Files
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="fun" class="section hidden">
+            <div class="bg-gradient-to-r from-pink-100 via-purple-100 to-indigo-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-pink-700 mb-4">Fun Corner</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-6 rounded-lg shadow">
+                  <h4 class="text-lg font-semibold mb-4">Math Jokes</h4>
+                  <div id="jokes-container" class="space-y-4">
+                    <!-- Jokes will be loaded here -->
+                  </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                  <h4 class="text-lg font-semibold mb-4">Math Puzzles</h4>
+                  <div id="puzzles-container" class="space-y-4">
+                    <!-- Puzzles will be loaded here -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="grades" class="section hidden">
+            <div class="bg-gradient-to-r from-green-100 via-teal-100 to-blue-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-green-700 mb-4">Grades</h3>
+              <div class="bg-white p-6 rounded-lg shadow">
+                <div class="space-y-4">
+                  <div>
+                    <h4 class="text-lg font-semibold mb-2">Mathematics</h4>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                      <div class="bg-blue-600 h-2.5 rounded-full" style="width: 85%"></div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1">85% - Excellent!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="announcements" class="section hidden">
+            <div class="bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-blue-700 mb-4">Announcements</h3>
+              <div id="announcements-list" class="space-y-4">
+                <!-- Announcements will be loaded here -->
+              </div>
+            </div>
+          </div>
+
+          <div id="zoom" class="section hidden">
+            <div class="bg-gradient-to-r from-purple-100 via-pink-100 to-red-100 rounded-2xl shadow-lg p-8 mb-6">
+              <h3 class="text-2xl font-bold text-purple-700 mb-4">Zoom Links</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-6 rounded-lg shadow">
+                  <h4 class="text-lg font-semibold mb-2">Mathematics Class</h4>
+                  <p class="text-gray-600 mb-4">Join your mathematics class here</p>
+                  <a href="#" class="text-blue-500 hover:text-blue-700">Join Meeting</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Now update the user info after the elements exist
+        const studentNameElement = document.getElementById('student-name');
+        const studentLevelElement = document.getElementById('student-level');
+        
+        if (!userData) {
+          throw new Error('User data not found. Please log in again.');
+        }
+
+        if (!userData.subjectLevel) {
+          throw new Error('Subject level not found in user data. Please log in again.');
+        }
+        
+        if (studentNameElement && studentLevelElement) {
+          studentNameElement.textContent = userData.name || 'Student';
+          studentLevelElement.textContent = userData.subjectLevel.toUpperCase() + ' Level';
+        }
+
+        // Load initial data
+        await Promise.all([
+          loadMaterials(),
+          loadHomework(),
+          loadAnnouncements()
+        ]);
+
+        // Show home tab by default
+        showTab('home');
+        isLoading = false;
+
+      } catch (error) {
+        console.error('Error initializing dashboard:', error);
+        mainContent.innerHTML = `
+          <div class="flex items-center justify-center h-screen">
+            <div class="text-center">
+              <p class="text-red-500 text-lg">Error loading dashboard. Please try again.</p>
+              <button onclick="window.location.reload()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Retry
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    // Add logout function
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        localStorage.removeItem('userData');
+        window.location.href = 'login.html';
+      }).catch((error) => {
+        console.error('Error signing out:', error);
+      });
+    }
+
+    // Function to load materials
+    async function loadMaterials() {
+      try {
+        const materialsList = document.getElementById('materials-list');
+        materialsList.innerHTML = '<div class="col-span-full text-center py-4"><span class="fa fa-spinner fa-spin text-2xl text-blue-500"></span></div>';
+
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        if (!userData || !userData.subjectLevel) {
+          throw new Error('User data or subject level not found. Please log in again.');
+        }
+
+        const snapshot = await firebase.firestore()
+          .collection('materials')
+          .where('groupId', '==', userData.subjectLevel)
+          .get();
+
+        materialsList.innerHTML = '';
+        
+        if (snapshot.empty) {
+          materialsList.innerHTML = '<div class="col-span-full text-center py-4 text-gray-500">No materials available</div>';
+          return;
+        }
+
+        // Sort materials in memory
+        const materials = [];
+        snapshot.forEach((doc) => {
+          materials.push({ id: doc.id, ...doc.data() });
+        });
+        materials.sort((a, b) => b.uploadDate - a.uploadDate);
+
+        materials.forEach((material) => {
+          const card = document.createElement('div');
+          card.className = 'bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200';
+          card.innerHTML = `
+            <div class="flex items-center gap-3 mb-3">
+              <span class="fa fa-file text-2xl text-blue-500"></span>
+              <div>
+                <h4 class="font-semibold">${material.title}</h4>
+                <p class="text-sm text-gray-500">${material.fileName}</p>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-3">${material.description}</p>
+            <div class="flex justify-between items-center">
+              <div class="text-xs text-gray-500">
+                Uploaded by ${material.uploadedBy}
+              </div>
+              <a href="${material.fileUrl}" target="_blank" class="text-blue-500 hover:text-blue-700 px-3 py-1 rounded hover:bg-blue-50">
+                <span class="fa fa-download"></span> Download
+              </a>
+            </div>
+          `;
+          materialsList.appendChild(card);
+        });
+      } catch (error) {
+        console.error('Error loading materials:', error);
+        document.getElementById('materials-list').innerHTML = 
+          '<div class="col-span-full text-center py-4 text-red-500">Error loading materials</div>';
+      }
+    }
+
+    // Function to load homework
+    async function loadHomework() {
+      try {
+        const homeworkList = document.getElementById('homework-list');
+        homeworkList.innerHTML = '<div class="text-center py-4"><span class="fa fa-spinner fa-spin text-2xl text-green-500"></span></div>';
+
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        if (!userData || !userData.subjectLevel) {
+          throw new Error('User data or subject level not found. Please log in again.');
+        }
+
+        const snapshot = await firebase.firestore()
+          .collection('homework')
+          .where('groupId', '==', userData.subjectLevel)
+          .get();
+
+        homeworkList.innerHTML = '';
+        
+        if (snapshot.empty) {
+          homeworkList.innerHTML = '<div class="text-center py-4 text-gray-500">No homework assigned</div>';
+          return;
+        }
+
+        // Sort homework in memory
+        const homeworkItems = [];
+        snapshot.forEach((doc) => {
+          homeworkItems.push({ id: doc.id, ...doc.data() });
+        });
+        homeworkItems.sort((a, b) => a.dueDate - b.dueDate);
+
+        homeworkItems.forEach((homework) => {
+          const dueDate = homework.dueDate.toDate();
+          const now = new Date();
+          const isOverdue = dueDate < now;
+          const isDueSoon = !isOverdue && (dueDate - now) < 24 * 60 * 60 * 1000;
+
+          const card = document.createElement('div');
+          card.className = 'bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200';
+          card.innerHTML = `
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-3">
+                <span class="fa fa-book text-2xl text-green-500"></span>
+                <div>
+                  <h4 class="font-semibold">${homework.title}</h4>
+                  <p class="text-sm text-gray-500">Due: ${dueDate.toLocaleString()}</p>
+                </div>
+              </div>
+              <span class="px-2 py-1 text-xs rounded-full ${
+                isOverdue ? 'bg-red-100 text-red-800' :
+                isDueSoon ? 'bg-yellow-100 text-yellow-800' :
+                'bg-green-100 text-green-800'
+              }">${isOverdue ? 'Overdue' : isDueSoon ? 'Due Soon' : 'Active'}</span>
+            </div>
+            <p class="text-sm text-gray-600 mb-3">${homework.description}</p>
+            ${homework.files ? `
+              <div class="mb-3">
+                <h5 class="text-sm font-medium text-gray-700 mb-2">Attachments:</h5>
+                <div class="space-y-1">
+                  ${homework.files.map(file => `
+                    <a href="${file.url}" target="_blank" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800">
+                      <span class="fa fa-file"></span>
+                      ${file.name}
+                    </a>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+            <div class="flex justify-between items-center">
+              <div class="text-xs text-gray-500">
+                Created by ${homework.createdBy}
+              </div>
+              <button onclick="submitHomework('${homework.id}')" class="text-green-500 hover:text-green-700 px-3 py-1 rounded hover:bg-green-50">
+                <span class="fa fa-upload"></span> Submit
+              </button>
+            </div>
+          `;
+          homeworkList.appendChild(card);
+        });
+      } catch (error) {
+        console.error('Error loading homework:', error);
+        document.getElementById('homework-list').innerHTML = 
+          '<div class="text-center py-4 text-red-500">Error loading homework</div>';
+      }
+    }
+
+    // Function to load announcements
+    async function loadAnnouncements() {
+      try {
+        const announcementsList = document.getElementById('announcements-list');
+        announcementsList.innerHTML = '<div class="text-center py-4"><span class="fa fa-spinner fa-spin text-2xl text-blue-500"></span></div>';
+
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        if (!userData || !userData.subjectLevel) {
+          throw new Error('User data or subject level not found. Please log in again.');
+        }
+
+        const snapshot = await firebase.firestore()
+          .collection('announcements')
+          .where('groupId', '==', userData.subjectLevel)
+          .get();
+
+        announcementsList.innerHTML = '';
+        
+        if (snapshot.empty) {
+          announcementsList.innerHTML = '<div class="text-center py-4 text-gray-500">No announcements</div>';
+          return;
+        }
+
+        // Sort announcements in memory
+        const announcements = [];
+        snapshot.forEach((doc) => {
+          announcements.push({ id: doc.id, ...doc.data() });
+        });
+        announcements.sort((a, b) => b.date - a.date);
+
+        announcements.forEach((announcement) => {
+          const card = document.createElement('div');
+          card.className = 'bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200';
+          card.innerHTML = `
+            <div class="flex items-center gap-3 mb-3">
+              <span class="fa fa-bullhorn text-2xl text-blue-500"></span>
+              <div>
+                <h4 class="font-semibold">${announcement.title}</h4>
+                <p class="text-sm text-gray-500">${announcement.date.toDate().toLocaleString()}</p>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600">${announcement.content}</p>
+          `;
+          announcementsList.appendChild(card);
+        });
+      } catch (error) {
+        console.error('Error loading announcements:', error);
+        document.getElementById('announcements-list').innerHTML = 
+          '<div class="text-center py-4 text-red-500">Error loading announcements</div>';
+      }
+    }
+
+    // Function to submit homework
+    async function submitHomework(homeworkId) {
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.multiple = true;
+      fileInput.onchange = async (e) => {
+        const files = e.target.files;
+        if (files.length === 0) return;
+
+        try {
+          const fileUrls = [];
+          for (const file of files) {
+            const storageRef = firebase.storage().ref();
+            const fileRef = storageRef.child(`homework_submissions/${homeworkId}/${Date.now()}_${file.name}`);
+            const uploadResult = await fileRef.put(file);
+            const downloadURL = await uploadResult.ref.getDownloadURL();
+            fileUrls.push({
+              name: file.name,
+              url: downloadURL,
+              type: file.type,
+              size: file.size
+            });
+          }
+
+          await firebase.firestore().collection('homework_submissions').add({
+            homeworkId,
+            studentId: firebase.auth().currentUser.uid,
+            files: fileUrls,
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          alert('Homework submitted successfully!');
+          loadHomework();
+        } catch (error) {
+          console.error('Error submitting homework:', error);
+          alert('Error submitting homework. Please try again.');
+        }
+      };
+      fileInput.click();
+    }
+
+    // Function to show selected tab
+    function showTab(tabName) {
+      if (isLoading) return;
+      
+      // Hide all sections
+      document.querySelectorAll('.section').forEach(section => {
+        section.classList.add('hidden');
+      });
+
+      // Show selected section
+      const selectedSection = document.getElementById(tabName);
+      if (selectedSection) {
+        selectedSection.classList.remove('hidden');
+        
+        // Load content based on selected tab
+        if (tabName === 'materials') {
+          loadMaterials();
+        } else if (tabName === 'homework') {
+          loadHomework();
+        } else if (tabName === 'announcements') {
+          loadAnnouncements();
+        }
+      }
+    }
+
+    // Function to toggle dark mode
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const isDark = html.classList.toggle('dark');
+      localStorage.setItem('mode', isDark ? 'dark' : 'light');
+    }
+
+    // Function to toggle sidebar
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('shrunk');
+    }
+
+    // Function to send chat message
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if (message) {
+        const messagesContainer = document.getElementById('chatMessages');
+        const newMessage = document.createElement('div');
+        newMessage.textContent = message;
+        newMessage.classList.add('bg-[#F1F1F1]', 'p-2', 'rounded', 'my-2');
+        messagesContainer.appendChild(newMessage);
+        input.value = '';
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }
+
+    // Initialize when the page loads
+    window.onload = () => {
+      const mode = localStorage.getItem('mode');
+      if (mode === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+      }
+      showTab('home');
+    };
+  </script>
+</body>
+</html>

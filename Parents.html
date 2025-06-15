@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Parents Dashboard - Login & Signup</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f3fa;
+      color: #3a2f5a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #4b3c87;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+    }
+    form {
+      background: white;
+      padding: 25px 30px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(93, 58, 155, 0.2);
+      max-width: 360px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    form h2 {
+      margin-bottom: 15px;
+      color: #5d3a9b;
+      font-weight: 700;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      margin-bottom: 15px;
+      border: 1.8px solid #cfcde1;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+    input:focus {
+      border-color: #5d3a9b;
+      outline: none;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: #5d3a9b;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #442a70;
+    }
+    #login-error, #signup-error {
+      color: #c0392b;
+      margin-bottom: 12px;
+      font-weight: 600;
+      text-align: center;
+    }
+    #dashboard {
+      max-width: 900px;
+      width: 100%;
+      margin-top: 20px;
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      color: #3a2f5a;
+    }
+    #parent-welcome {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+    .child-card {
+      background: white;
+      padding: 20px 25px;
+      border-radius: 14px;
+      box-shadow: 0 8px 15px rgba(93, 58, 155, 0.15);
+      transition: box-shadow 0.3s ease;
+    }
+    .child-card:hover {
+      box-shadow: 0 14px 25px rgba(93, 58, 155, 0.25);
+    }
+    .child-card h2 {
+      margin: 0 0 10px 0;
+      color: #4b3c87;
+      font-weight: 800;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .stat {
+      font-size: 1.15rem;
+      margin: 6px 0;
+    }
+    .stat strong {
+      color: #5d3a9b;
+    }
+    .note {
+      margin-top: 12px;
+      font-style: italic;
+      color: #7a6c9f;
+      font-size: 0.95rem;
+    }
+    #loading {
+      font-size: 1.2rem;
+      color: #7a6c9f;
+      margin-top: 40px;
+      text-align: center;
+    }
+    #toggle-forms {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #5d3a9b;
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+    }
+    #toggle-forms:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+      .child-card {
+        padding: 15px 20px;
+      }
+      form {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Parents Dashboard</h1>
+
+  <div id="toggle-forms">Don't have an account? <span id="toggle-link" style="color:#442a70; font-weight:700;">Sign Up</span></div>
+
+  <!-- Student ID Registration Form -->
+  <form id="student-registration-form" style="display:none;">
+    <h2>Register Student ID</h2>
+    <div id="student-registration-error"></div>
+    <input type="text" id="student-name" placeholder="Student Name" required />
+    <input type="text" id="student-grade" placeholder="Grade" required />
+    <button type="submit">Register Student</button>
+  </form>
+
+  <!-- Login Form -->
+  <form id="login-form">
+    <h2>Parent Login</h2>
+    <div id="login-error"></div>
+    <input type="email" id="login-email" placeholder="Email" required />
+    <input type="password" id="login-password" placeholder="Password" required minlength="6" />
+    <input type="text" id="login-student-id" placeholder="Student ID" required />
+    <button type="submit">Log In</button>
+    <p style="text-align: center; margin-top: 10px;">
+      <a href="#" id="show-student-registration" style="color: #5d3a9b; text-decoration: none;">Don't have a Student ID? Register here</a>
+    </p>
+  </form>
+
+  <!-- Signup Form -->
+  <form id="signup-form" style="display:none;">
+    <h2>Create Account</h2>
+    <div id="signup-error"></div>
+    <input type="text" id="signup-name" placeholder="Your Name" required />
+    <input type="email" id="signup-email" placeholder="Email" required />
+    <input type="password" id="signup-password" placeholder="Password" required minlength="6" />
+    <input type="text" id="signup-student-id" placeholder="Student ID" required />
+    <button type="submit">Sign Up</button>
+    <p style="text-align: center; margin-top: 10px;">
+      <a href="#" id="show-student-registration-signup" style="color: #5d3a9b; text-decoration: none;">Don't have a Student ID? Register here</a>
+    </p>
+  </form>
+
+  <div id="loading" style="display:none;">Loading your superhero status... 🦸‍♂️</div>
+
+  <!-- Dashboard Container -->
+  <div id="dashboard">
+    <div id="parent-welcome"></div>
+    
+    <!-- Add Student ID Section -->
+    <div id="add-student-section" style="
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(93, 58, 155, 0.2);
+      margin-bottom: 20px;
+      display: none;
+    ">
+      <h2 style="color: #5d3a9b; margin-bottom: 15px;">Add Student ID</h2>
+      <form id="add-student-form">
+        <input type="text" id="new-student-id" placeholder="Enter Student ID" required />
+        <button type="submit" style="margin-top: 10px;">Add Student</button>
+      </form>
+      <div id="add-student-error" style="color: #c0392b; margin-top: 10px;"></div>
+    </div>
+
+    <div id="children-container"></div>
+    <button id="add-student-btn" style="
+      padding: 10px 15px;
+      margin: 20px 0;
+      background-color: #5d3a9b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      max-width: 200px;
+    ">Add Another Student</button>
+    <button id="logout-btn" style="
+      padding: 10px 15px;
+      margin-top: 25px;
+      background-color: #442a70;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      max-width: 150px;
+    ">Log Out</button>
+  </div>
+
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-juwr-RtJmxW8d3xTWy9BthYR7Ave4LY",
+      authDomain: "students-glory.firebaseapp.com",
+      projectId: "students-glory",
+      storageBucket: "students-glory.firebasestorage.app",
+      messagingSenderId: "337864792101",
+      appId: "1:337864792101:web:3f92bf2e4e8f7b499487cc"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const loginError = document.getElementById('login-error');
+    const signupError = document.getElementById('signup-error');
+    const loadingText = document.getElementById('loading');
+    const dashboard = document.getElementById('dashboard');
+    const parentWelcome = document.getElementById('parent-welcome');
+    const childrenContainer = document.getElementById('children-container');
+    const toggleFormsDiv = document.getElementById('toggle-forms');
+    const toggleLink = document.getElementById('toggle-link');
+    const logoutBtn = document.getElementById('logout-btn');
+    const studentRegistrationForm = document.getElementById('student-registration-form');
+    const studentRegistrationError = document.getElementById('student-registration-error');
+    const showStudentRegistration = document.getElementById('show-student-registration');
+    const showStudentRegistrationSignup = document.getElementById('show-student-registration-signup');
+    const addStudentSection = document.getElementById('add-student-section');
+    const addStudentForm = document.getElementById('add-student-form');
+    const addStudentError = document.getElementById('add-student-error');
+    const addStudentBtn = document.getElementById('add-student-btn');
+
+    // Toggle login/signup forms
+    toggleFormsDiv.addEventListener('click', () => {
+      if (loginForm.style.display === 'none') {
+        loginForm.style.display = 'block';
+        signupForm.style.display = 'none';
+        toggleLink.textContent = 'Sign Up';
+        toggleFormsDiv.innerHTML = `Don't have an account? <span id="toggle-link" style="color:#442a70; font-weight:700;">Sign Up</span>`;
+      } else {
+        loginForm.style.display = 'none';
+        signupForm.style.display = 'block';
+        toggleLink.textContent = 'Log In';
+        toggleFormsDiv.innerHTML = `Already have an account? <span id="toggle-link" style="color:#442a70; font-weight:700;">Log In</span>`;
+      }
+    });
+
+    // Show student registration form
+    showStudentRegistration.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginForm.style.display = 'none';
+      signupForm.style.display = 'none';
+      studentRegistrationForm.style.display = 'block';
+      toggleFormsDiv.style.display = 'none';
+    });
+
+    showStudentRegistrationSignup.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginForm.style.display = 'none';
+      signupForm.style.display = 'none';
+      studentRegistrationForm.style.display = 'block';
+      toggleFormsDiv.style.display = 'none';
+    });
+
+    // Handle student registration
+    studentRegistrationForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      studentRegistrationError.textContent = '';
+      loadingText.style.display = 'block';
+
+      const studentName = document.getElementById('student-name').value.trim();
+      const studentGrade = document.getElementById('student-grade').value.trim();
+
+      try {
+        // Generate a unique student ID
+        const studentId = 'STU' + Date.now().toString().slice(-6);
+        
+        // Create student document
+        await db.collection('Students').doc(studentId).set({
+          name: studentName,
+          grade: studentGrade,
+          attendance: 0,
+          homeworkStatus: {
+            completed: 0,
+            total: 0
+          },
+          courses: {},
+          reports: [],
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Show success message with student ID
+        studentRegistrationForm.innerHTML = `
+          <h2>Student Registration Successful!</h2>
+          <p style="text-align: center; margin: 20px 0;">
+            Your Student ID is: <strong>${studentId}</strong>
+          </p>
+          <p style="text-align: center; color: #666;">
+            Please save this ID. You'll need it to create a parent account.
+          </p>
+          <button type="button" onclick="window.location.reload()" style="
+            width: 100%;
+            padding: 14px;
+            background-color: #5d3a9b;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 20px;
+          ">Continue to Login</button>
+        `;
+      } catch (err) {
+        loadingText.style.display = 'none';
+        studentRegistrationError.textContent = err.message;
+      }
+    });
+
+    // Check if student exists in database
+    async function checkStudentExists(studentId) {
+      try {
+        const studentDoc = await db.collection('Students').doc(studentId).get();
+        return studentDoc.exists;
+      } catch (error) {
+        console.error('Error checking student:', error);
+        return false;
+      }
+    }
+
+    // Verify student ID exists
+    async function verifyStudentId(studentId) {
+      try {
+        // First check if the student exists
+        const studentExists = await checkStudentExists(studentId);
+        if (!studentExists) {
+          throw new Error('Student ID not found. Please make sure you have the correct ID or contact the school administration.');
+        }
+
+        // If not logged in yet (during signup), return true
+        if (!auth.currentUser) {
+          return true;
+        }
+
+        // Check if the student is already linked to another parent
+        const parentsSnapshot = await db.collection('Parents')
+          .where('linkedChildIds', 'array-contains', studentId)
+          .get();
+
+        if (!parentsSnapshot.empty) {
+          const parentDoc = parentsSnapshot.docs[0];
+          if (parentDoc.id !== auth.currentUser.uid) {
+            throw new Error('This student ID is already linked to another parent account');
+          }
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Error verifying student ID:', error);
+        throw error;
+      }
+    }
+
+    // Login handler
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.textContent = '';
+      loadingText.style.display = 'block';
+
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      const studentId = document.getElementById('login-student-id').value.trim();
+
+      try {
+        // First login
+        await auth.signInWithEmailAndPassword(email, password);
+        
+        // Then verify the student ID
+        const parentDoc = await db.collection('Parents').doc(auth.currentUser.uid).get();
+        if (!parentDoc.exists) {
+          throw new Error('Parent account not found.');
+        }
+
+        const parentData = parentDoc.data();
+        if (!parentData.linkedChildIds.includes(studentId)) {
+          throw new Error('This student ID is not linked to your account.');
+        }
+        
+        loadParentData();
+      } catch (err) {
+        loadingText.style.display = 'none';
+        loginError.textContent = err.message;
+      }
+    });
+
+    // Signup handler
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      signupError.textContent = '';
+      loadingText.style.display = 'block';
+
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value.trim();
+      const studentId = document.getElementById('signup-student-id').value.trim();
+
+      try {
+        // First check if student exists
+        const studentDoc = await db.collection('Students').doc(studentId).get();
+        if (!studentDoc.exists) {
+          throw new Error('Student ID not found. Please make sure you have the correct ID or contact the school administration.');
+        }
+
+        // Check if student is already linked to another parent
+        const parentsSnapshot = await db.collection('Parents')
+          .where('linkedChildIds', 'array-contains', studentId)
+          .get();
+
+        if (!parentsSnapshot.empty) {
+          throw new Error('This student ID is already linked to another parent account');
+        }
+
+        // Create the parent account
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        
+        // Add parent info to Firestore
+        await db.collection('Parents').doc(userCredential.user.uid).set({
+          name,
+          email,
+          linkedChildIds: [studentId],
+          studentId: studentId
+        });
+        
+        loadParentData();
+      } catch (err) {
+        loadingText.style.display = 'none';
+        signupError.textContent = err.message;
+      }
+    });
+
+    // Toggle add student section
+    addStudentBtn.addEventListener('click', () => {
+      if (addStudentSection.style.display === 'none') {
+        addStudentSection.style.display = 'block';
+        addStudentBtn.textContent = 'Cancel';
+      } else {
+        addStudentSection.style.display = 'none';
+        addStudentBtn.textContent = 'Add Another Student';
+        addStudentError.textContent = '';
+      }
+    });
+
+    // Add student form handler
+    addStudentForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      addStudentError.textContent = '';
+      loadingText.style.display = 'block';
+
+      const studentId = document.getElementById('new-student-id').value.trim();
+      const user = auth.currentUser;
+
+      try {
+        // First verify the student ID exists
+        await verifyStudentId(studentId);
+
+        // Get current parent data
+        const parentDoc = await db.collection('Parents').doc(user.uid).get();
+        const parentData = parentDoc.data();
+
+        // Check if student is already linked to this parent
+        if (parentData.linkedChildIds.includes(studentId)) {
+          throw new Error('This student is already linked to your account.');
+        }
+
+        // Add student ID to parent's linkedChildIds array
+        await db.collection('Parents').doc(user.uid).update({
+          linkedChildIds: firebase.firestore.FieldValue.arrayUnion(studentId)
+        });
+
+        // Clear form and hide section
+        addStudentForm.reset();
+        addStudentSection.style.display = 'none';
+        addStudentBtn.textContent = 'Add Another Student';
+        
+        // Reload parent data to show new student
+        loadParentData();
+      } catch (err) {
+        loadingText.style.display = 'none';
+        addStudentError.textContent = err.message;
+      }
+    });
+
+    // Load parent dashboard data
+    async function loadParentData() {
+      const user = auth.currentUser;
+      if (!user) {
+        loadingText.style.display = 'none';
+        loginError.textContent = 'No parent logged in.';
+        return;
+      }
+
+      try {
+        const parentDoc = await db.collection('Parents').doc(user.uid).get();
+
+        if (!parentDoc.exists) {
+          loadingText.style.display = 'none';
+          loginError.textContent = 'Parent data not found.';
+          return;
+        }
+
+        const parentData = parentDoc.data();
+
+        loginForm.style.display = 'none';
+        signupForm.style.display = 'none';
+        toggleFormsDiv.style.display = 'none';
+        loadingText.style.display = 'none';
+        dashboard.style.display = 'flex';
+
+        parentWelcome.textContent = `Welcome, ${parentData.name}! Here is your child's progress:`;
+
+        // Show/hide add student button based on number of linked students
+        if (parentData.linkedChildIds && parentData.linkedChildIds.length > 0) {
+          addStudentBtn.style.display = 'block';
+        } else {
+          addStudentBtn.style.display = 'none';
+        }
+
+        childrenContainer.innerHTML = '';
+
+        for (const childId of parentData.linkedChildIds) {
+          const childDoc = await db.collection('Students').doc(childId).get();
+          if (!childDoc.exists) continue;
+          const child = childDoc.data();
+
+          const card = document.createElement('div');
+          card.className = 'child-card';
+          card.style.cssText = `
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+          `;
+
+          // Calculate homework completion percentage
+          const homeworkPercentage = (child.homeworkStatus.completed / child.homeworkStatus.total) * 100;
+          
+          // Determine attendance status color
+          const attendanceColor = child.attendance >= 90 ? '#4CAF50' : 
+                                child.attendance >= 75 ? '#FFA726' : '#F44336';
+
+          card.innerHTML = `
+            <h2 style="color: #442a70; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">
+              📚 ${child.name}'s Academic Progress
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+              <div style="background: #f8f5ff; padding: 15px; border-radius: 10px;">
+                <p style="margin: 0;"><strong>Student ID:</strong></p>
+                <p style="margin: 5px 0; color: #442a70;">${childId}</p>
+              </div>
+              
+              <div style="background: #f8f5ff; padding: 15px; border-radius: 10px;">
+                <p style="margin: 0;"><strong>Grade Level:</strong></p>
+                <p style="margin: 5px 0; color: #442a70;">${child.grade}</p>
+              </div>
+            </div>
+
+            <div style="background: #f8f5ff; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+              <h3 style="color: #442a70; margin-top: 0;">📊 Academic Performance</h3>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                <div>
+                  <p style="margin: 0;"><strong>Attendance Rate:</strong></p>
+                  <p style="margin: 5px 0; color: ${attendanceColor};">${child.attendance}%</p>
+                </div>
+                <div>
+                  <p style="margin: 0;"><strong>Homework Completion:</strong></p>
+                  <p style="margin: 5px 0; color: #442a70;">${homeworkPercentage.toFixed(1)}%</p>
+                  <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
+                    (${child.homeworkStatus.completed} of ${child.homeworkStatus.total} assignments)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: #f8f5ff; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+              <h3 style="color: #442a70; margin-top: 0;">📝 Course Grades</h3>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                ${child.courses ? Object.entries(child.courses).map(([course, grade]) => `
+                  <div style="background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <p style="margin: 0; font-weight: bold;">${course}</p>
+                    <p style="margin: 5px 0; color: #442a70; font-size: 1.2em;">${grade}</p>
+                  </div>
+                `).join('') : '<p>No courses available</p>'}
+              </div>
+            </div>
+
+            <div style="background: #f8f5ff; padding: 15px; border-radius: 10px;">
+              <h3 style="color: #442a70; margin-top: 0;">📋 Recent Progress Reports</h3>
+              ${child.reports ? child.reports.map(report => `
+                <div style="background: white; padding: 10px; border-radius: 8px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                  <p style="margin: 0; color: #666; font-size: 0.9em;">${report.date}</p>
+                  <p style="margin: 5px 0;">${report.content}</p>
+                </div>
+              `).join('') : '<p>No recent reports available</p>'}
+            </div>
+
+            <p style="text-align: center; margin-top: 20px; color: #666; font-style: italic;">
+              Keep cheering them on, every star counts! ⭐
+            </p>
+          `;
+
+          childrenContainer.appendChild(card);
+        }
+      } catch (error) {
+        loadingText.style.display = 'none';
+        loginError.textContent = 'Failed to load data. Try again later.';
+        console.error(error);
+      }
+    }
+
+    // Logout button
+    logoutBtn.addEventListener('click', async () => {
+      await auth.signOut();
+      dashboard.style.display = 'none';
+      loginForm.style.display = 'block';
+      toggleFormsDiv.style.display = 'block';
+      loginError.textContent = '';
+      signupError.textContent = '';
+      toggleFormsDiv.innerHTML = `Don't have an account? <span id="toggle-link" style="color:#442a70; font-weight:700;">Sign Up</span>`;
+    });
+
+    // Automatically check if user logged in
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        loadParentData();
+      } else {
+        dashboard.style.display = 'none';
+        loginForm.style.display = 'block';
+        signupForm.style.display = 'none';
+        toggleFormsDiv.style.display = 'block';
+        loadingText.style.display = 'none';
+      }
+    });
+  </script>
+
+</body>
+</html>
